@@ -5,7 +5,11 @@ module.exports = {
     "@vue/eslint-config-typescript"
   ],
   "parserOptions": {
-    "ecmaVersion": "latest"
+    "ecmaVersion": 6,
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true
+    }
   },
   "plugins": [
     "vue",
