@@ -3,34 +3,50 @@
     <div class="relative">
       <!-- 内容 -->
       <div class="z-10 h-full border border-solid border-neutral-300 bg-gray-100 px-2 py-3">
-          <TheSlot
-            :v-node="defaultSlot"
-            class=""
-            :style="{
-            marginLeft: `${slider.contentOffset}px`
+        <TheSlot
+          :v-node="defaultSlot"
+          class="overflow-hidden rounded-md transition-[margin-left]"
+          :style="{
+            marginLeft: `${slider.contentOffset}px`,
+            transitionDuration: `${slider.style.enableAnimation ? 75 : 0}ms`,
           }"></TheSlot>
       </div>
 
       <!-- 滚动条容器 -->
-      <div class="absolute bottom-px h-4.5 w-full px-px" :class="{ hidden: !slider.isOverflow }">
+      <div
+        class="absolute bottom-px h-4.5 w-full px-px transition-[height] duration-75"
+        :class="{ hidden: !slider.isOverflow, '!h-3': slider.style.folded }"
+        @mouseover="handleMouseOverSliderContainer"
+        @mouseleave="handleMouseLeaveSliderContainer">
         <!-- 滑轨 -->
-        <div class="mx-0.5 flex h-4.5 items-center justify-center rounded-full bg-gray-100">
+        <div
+          class="mx-0.5 flex h-4.5 items-center justify-center rounded-full bg-gray-100 transition-[height] duration-75"
+          :class="{ '!h-3': slider.style.folded }">
           <!-- 滑轨控制按钮 - 开始 -->
-          <div class="flex w-5 items-center justify-end">
-            <Triangle type="left" class="mr-1 cursor-pointer"></Triangle>
+          <div
+            class="flex w-5 items-center justify-end transition-opacity duration-75"
+            :class="{ 'opacity-0': slider.style.folded }">
+            <Triangle type="left" class="mr-1" @click="handleClickControlStart"></Triangle>
           </div>
 
           <!-- 滑块 -->
           <div class="flex flex-1 items-center">
             <div
-              class="border-px right-0 box-border h-2.5 rounded border-neutral-300 bg-neutral-400 hover:cursor-pointer"
-              :style="{ width: `${slider.blockWidth}px`, marginLeft: `${slider.blockOffset}px` }"
+              class="border-px right-0 box-border h-2.5 rounded border-neutral-300 bg-neutral-400 transition-[margin-left] duration-75"
+              :style="{
+                width: `${slider.blockWidth}px`,
+                height: `${slider.style.folded ? 4 : 10}px`,
+                marginLeft: `${slider.blockOffset}px`,
+                transitionDuration: `${slider.style.enableAnimation ? 75 : 0}ms`,
+              }"
               ref="blockRef"></div>
           </div>
 
           <!-- 滑轨控制按钮 - 结束 -->
-          <div class="flex w-5 items-center justify-start">
-            <Triangle type="right" class="ml-1 cursor-pointer"></Triangle>
+          <div
+            class="flex w-5 items-center justify-start transition-opacity duration-75"
+            :class="{ 'opacity-0': slider.style.folded }">
+            <Triangle type="right" class="ml-1" @click="handleClickControlEnd"></Triangle>
           </div>
         </div>
       </div>
@@ -39,11 +55,10 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref, toRaw, useSlots, watch } from "vue";
+import { onBeforeUnmount, onMounted, reactive, ref, useSlots, watch } from "vue";
 import createSlot from "./createSlot.ts";
 import Triangle from "./Triangle.vue";
 import { minmax } from "../../utils/helper.ts";
-import { av } from "vitest/dist/reporters-5f784f42";
 
 // 获取 slot 的实际元素，并计算元素的高度/宽度
 // 由于最前面的可能是注释 <!-- -->，
@@ -70,6 +85,11 @@ const slider = reactive({
   contentWidth: 0,
   trackWidth: 0,
   trackOffsetLeft: 0,
+  style: {
+    enableAnimation: false,
+    folded: true,
+    foldTimer: 1,
+  },
   event: {
     mouseX: 0,
     blockX: 0,
@@ -112,7 +132,6 @@ const reCalcOffset = () => {
   // 滑动内容
   const availableContentWidth = slider.contentWidth - slider.containerWidth + 16 + 5;
   slider.contentOffset = -(availableContentWidth * rate);
-  console.log("内容", rate, slider.contentWidth);
 };
 
 // 当滑轨的偏移量百分比发生变化时
@@ -125,6 +144,31 @@ watch(
     immediate: true,
   },
 );
+
+const handleClickControlStart = () => {
+  slider.style.enableAnimation = true;
+  slider.rate = minmax(slider.rate - 10, 0, 100);
+};
+
+const handleClickControlEnd = () => {
+  slider.style.enableAnimation = true;
+  slider.rate = minmax(slider.rate + 10, 0, 100);
+};
+
+const handleMouseOverSliderContainer = () => {
+  clearTimeout(slider.style.foldTimer);
+  slider.style.folded = false;
+};
+
+const handleMouseLeaveSliderContainer = () => {
+  slider.style.foldTimer = setTimeout(() => {
+    if (slider.event.isDown) {
+      handleMouseLeaveSliderContainer();
+      return;
+    }
+    slider.style.folded = true;
+  }, 500) as unknown as number;
+};
 
 const blockRef = ref<HTMLElement>();
 
@@ -140,6 +184,7 @@ const handleMouseMove = (e: MouseEvent) => {
   if (!slider.event.isDown) {
     return;
   }
+  slider.style.enableAnimation = false;
   const moved = slider.event.blockX - slider.trackOffsetLeft + (e.clientX - slider.event.mouseX);
   slider.rate = minmax((moved / (slider.trackWidth - slider.blockWidth)) * 100, 0, 100);
 };
@@ -149,9 +194,18 @@ const handleMouseUp = () => {
   slider.event.isDown = false;
 };
 
+// 处理鼠标滚轮事件
+const handleMouseWheel = (e: WheelEvent) => {
+  const direction = e.deltaY > 0 ? 1 : -1;
+  const amount = 7 * direction;
+  slider.style.enableAnimation = true;
+  slider.rate = minmax(slider.rate + amount, 0, 100);
+};
+
 onMounted(() => {
   reCalcSize();
 
+  overlayRef.value?.addEventListener("wheel", handleMouseWheel);
   blockRef.value?.addEventListener("mousedown", handleMouseDown);
   document.addEventListener("mousemove", handleMouseMove);
   document.addEventListener("mouseup", handleMouseUp);
