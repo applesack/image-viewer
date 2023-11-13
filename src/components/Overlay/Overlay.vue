@@ -1,8 +1,15 @@
 <template>
-  <div class="overlay select-none overflow-hidden" ref="overlayRef">
+  <div class="overlay select-none overflow-hidden rounded-xl border-2 border-gray-300" ref="overlayRef">
     <div class="relative">
       <!-- 内容 -->
-      <TheSlot :v-node="defaultSlot"></TheSlot>
+      <div class="z-10 h-full border border-solid border-neutral-300 bg-gray-100 px-2 py-3">
+          <TheSlot
+            :v-node="defaultSlot"
+            class=""
+            :style="{
+            marginLeft: `${slider.contentOffset}px`
+          }"></TheSlot>
+      </div>
 
       <!-- 滚动条容器 -->
       <div class="absolute bottom-px h-4.5 w-full px-px" :class="{ hidden: !slider.isOverflow }">
@@ -17,7 +24,7 @@
           <div class="flex flex-1 items-center">
             <div
               class="border-px right-0 box-border h-2.5 rounded border-neutral-300 bg-neutral-400 hover:cursor-pointer"
-              :style="{ width: `${slider.blockWidth}px`, marginLeft: `${slider.offset}px` }"
+              :style="{ width: `${slider.blockWidth}px`, marginLeft: `${slider.blockOffset}px` }"
               ref="blockRef"></div>
           </div>
 
@@ -32,10 +39,11 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref, useSlots, watch } from "vue";
+import { onBeforeUnmount, onMounted, reactive, ref, toRaw, useSlots, watch } from "vue";
 import createSlot from "./createSlot.ts";
 import Triangle from "./Triangle.vue";
 import { minmax } from "../../utils/helper.ts";
+import { av } from "vitest/dist/reporters-5f784f42";
 
 // 获取 slot 的实际元素，并计算元素的高度/宽度
 // 由于最前面的可能是注释 <!-- -->，
@@ -49,15 +57,17 @@ for (let s of Array.from(slots.default())) {
   }
 }
 
-const slotRef = ref<HTMLElement>();
+const contentRef = ref<HTMLElement>();
 const overlayRef = ref<HTMLElement>();
 const slider = reactive({
   isOverflow: false,
   blockWidth: 0,
-  rate: 50,
-  offset: 0,
+  rate: 0,
+  blockOffset: 0,
+  contentOffset: 0,
   containerWidth: 0,
-  slotWidth: 0,
+  containerBorder: 2,
+  contentWidth: 0,
   trackWidth: 0,
   trackOffsetLeft: 0,
   event: {
@@ -68,7 +78,7 @@ const slider = reactive({
 });
 
 const TheSlot = createSlot((el) => {
-  slotRef.value = el;
+  contentRef.value = el;
 });
 
 // 重新计算否显示滑块和滑块的尺寸
@@ -77,14 +87,14 @@ const reCalcSize = () => {
   slider.trackOffsetLeft = (overlayRef.value?.getBoundingClientRect()?.x ?? 0) + (5 + 20);
 
   // 初始化各项参数
-  slider.slotWidth = slotRef.value!!.scrollWidth;
+  slider.contentWidth = contentRef.value!!.scrollWidth;
   const containerRect = overlayRef.value!!.getBoundingClientRect();
   slider.containerWidth = containerRect.right - containerRect.left;
-  if (slider.slotWidth > slider.containerWidth) {
+  if (slider.contentWidth > slider.containerWidth) {
     slider.isOverflow = true;
     // 计算滑轨宽度 = 容器宽度 - (两边的按钮(20px) + 容器间边距(5px)) * 2
     slider.trackWidth = slider.containerWidth - (5 + 20) * 2;
-    slider.blockWidth = slider.trackWidth * (slider.containerWidth / slider.slotWidth);
+    slider.blockWidth = slider.trackWidth * ((slider.containerWidth - 16) / slider.contentWidth);
   } else {
     // 如果尺寸改变后容器足够放下内容，那么隐藏滚动条
     slider.isOverflow = false;
@@ -93,9 +103,16 @@ const reCalcSize = () => {
 
 // 重新计算滑块的偏移量
 const reCalcOffset = () => {
-  const rate = minmax(slider.rate, 0, 100);
+  const rate = minmax(slider.rate, 0, 100) / 100;
+
+  // 滑动滑块
   const availableTrackWidth = slider.trackWidth - slider.blockWidth;
-  slider.offset = availableTrackWidth * (rate / 100);
+  slider.blockOffset = availableTrackWidth * rate;
+
+  // 滑动内容
+  const availableContentWidth = slider.contentWidth - slider.containerWidth + 16 + 5;
+  slider.contentOffset = -(availableContentWidth * rate);
+  console.log("内容", rate, slider.contentWidth);
 };
 
 // 当滑轨的偏移量百分比发生变化时

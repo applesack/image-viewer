@@ -1,8 +1,8 @@
 <template>
   <div class="h-screen w-screen">
-    <Overlay class="absolute w-2/3 left-1/2 bottom-10 -translate-x-1/2 border-2 border-neutral-700 rounded-xl">
+    <Overlay class="absolute w-2/3 left-1/2 bottom-10 -translate-x-1/2">
       <div class="flex flex-row items-center justify-start space-x-8">
-        <div v-for="i in 15" :key="i" class="h-[104px] w-[104px] shrink-0 bg-black text-red-600">{{ i }}</div>
+        <div v-for="i in 10" :key="i" class="h-[104px] w-[104px] shrink-0 bg-black text-red-600">{{ i }}</div>
       </div>
       <!--      <div class="w-8 h-8 bg-red-50"></div>-->
       <!--      <div class="w-8 h-8 bg-red-50"></div>-->
