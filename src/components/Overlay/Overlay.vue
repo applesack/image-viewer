@@ -60,6 +60,10 @@ import createSlot from "./createSlot.ts";
 import Triangle from "./Triangle.vue";
 import { minmax } from "../../utils/helper.ts";
 
+defineOptions({
+  name: "Overlay",
+});
+
 // 获取 slot 的实际元素，并计算元素的高度/宽度
 // 由于最前面的可能是注释 <!-- -->，
 // 所以这里遍历找出第一个非注释的dom节点

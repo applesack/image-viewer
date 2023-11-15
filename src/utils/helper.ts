@@ -6,19 +6,3 @@
 export function minmax(value: number, min: number, max: number): number {
   return Math.max(Math.min(value, max), min);
 }
-
-export function getEleOffsetRelativeToWindow(ele?: HTMLElement): { offsetX: number; offsetY: number } {
-  console.log(ele?.getBoundingClientRect())
-  let offsetX = 0;
-  let offsetY = 0;
-  while (ele) {
-    offsetX = ele.offsetLeft
-    offsetY = ele.offsetTop
-    ele = ele.offsetParent as HTMLElement
-  }
-
-  return {
-    offsetX,
-    offsetY,
-  };
-}
