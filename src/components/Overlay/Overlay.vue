@@ -56,9 +56,8 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, reactive, ref, useSlots, watch } from "vue";
-import createSlot from "./createSlot.ts";
 import Triangle from "./Triangle.vue";
-import { minmax } from "../../utils/helper.ts";
+import { minmax, createSlot } from "../../utils/helper.ts";
 
 defineOptions({
   name: "Overlay",
