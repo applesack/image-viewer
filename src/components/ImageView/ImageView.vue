@@ -137,7 +137,6 @@ const recalculateScale = (newScale: number, by: "init" | "container" | "wheel") 
   if (by === "container") {
     if (state.adaptive) {
       if (isApproximate(state.preContainerWidth, curWidth) || isApproximate(state.preContainerHeight, curHeight)) {
-        console.log("fix");
         // 如果容器尺寸变化前和容器是自适应容器的，那么容器尺寸变化后也保持一致
         scale = fixedContentScale();
       } else {
@@ -194,11 +193,12 @@ const reposition = (oldScale: number, offset: { left: number; top: number } | nu
   }
 
   if (!state.hasInitOffset) {
-    state.hasInitOffset = true;
     if (image.naturalWidth === 0 && image.naturalHeight === 0) {
+      // 如果在图片未完成加载时可能会触发这个方法，此时图片的高宽位置，继续计算的话无意义
       return;
     }
 
+    state.hasInitOffset = true;
     // 初始化位置，使图片居中显示
     doScale();
     state.style.left = (state.containerWidth - state.style.width) / 2;
@@ -210,9 +210,34 @@ const reposition = (oldScale: number, offset: { left: number; top: number } | nu
     };
 
     const center = getScalePointer.value();
-    console.log(center);
     state.style.left -= getDiff(center.px);
     state.style.top -= getDiff(center.py);
+
+    // 如果图片高宽均大于容器，缩放后不应该在容器四周存在空缺
+    // 图片宽度小于容器高或宽，居中
+
+    if (scaleWidth > state.containerWidth) {
+      if (state.style.left > 0) {
+        state.style.left = 0;
+      }
+      if (state.style.left + scaleWidth < state.containerWidth) {
+        state.style.left = state.containerWidth - scaleWidth;
+      }
+    } else {
+      state.style.left = (state.containerWidth - scaleWidth) / 2;
+    }
+
+    if (scaleHeight > state.containerHeight) {
+      if (state.style.top > 0) {
+        state.style.top = 0;
+      }
+      if (state.style.top + scaleHeight < state.containerHeight) {
+        state.style.top = state.containerHeight - scaleHeight;
+      }
+    } else {
+      state.style.top = (state.containerHeight - scaleHeight) / 2;
+    }
+
     doScale();
   }
 };
