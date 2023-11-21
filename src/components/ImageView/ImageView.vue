@@ -18,6 +18,7 @@
 <script setup lang="ts">
 import { SingleImage, SingleImageEmits } from "./types.ts";
 import { onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { isApproximate } from "../../utils/helper.ts";
 
 defineOptions({
   name: "ImageView",
@@ -36,19 +37,28 @@ const state = reactive({
   preContainerHeight: 0,
   containerLeft: 0,
   containerTop: 0,
-  center: {
-    x: 0.5,
-    y: 0.5,
-  },
+  hasInitOffset: false,
   style: {
     height: 0,
     width: 0,
     left: 0,
     top: 0,
   },
+  drag: {
+    down: false,
+    x: 0,
+    y: 0,
+  },
 });
 
 const emits = defineEmits<SingleImageEmits>();
+
+/**
+ * 获取缩放点位于图片的位置
+ */
+interface GetScalePointer {
+  (): { px: number; py: number; mx: number; my: number };
+}
 
 const containerRef = ref<HTMLElement>();
 const onContainerResize = () => {
@@ -66,10 +76,35 @@ const getImage = (): HTMLImageElement | null => {
   return imageRef.value || null;
 };
 
+const getImageCenterPointer: GetScalePointer = () => {
+  // FIXME 如果left和top值可靠的话，可以这么搞
+
+  const containerBounding = containerRef.value!!.getBoundingClientRect();
+  const imageBounding = imageRef.value!!.getBoundingClientRect();
+  const clipBounding = {
+    left: Math.max(containerBounding.left, imageBounding.left),
+    right: Math.min(containerBounding.right, imageBounding.right),
+    top: Math.max(containerBounding.top, imageBounding.top),
+    bottom: Math.min(containerBounding.bottom, imageBounding.bottom),
+  };
+  const halfX = (clipBounding.right - clipBounding.left) / 2;
+  const halfY = (clipBounding.bottom - clipBounding.top) / 2;
+  const px = clipBounding.right - halfX - imageBounding.left;
+  const py = clipBounding.bottom - halfY - imageBounding.top;
+  return {
+    px,
+    py,
+    mx: state.style.left,
+    my: state.style.top,
+  };
+};
+const getScalePointer = ref<GetScalePointer>(getImageCenterPointer);
+
 const getScale = (containerValue: number, imageValue: number): number => containerValue / imageValue;
 
 // 初始化图片的初始缩放值
 const initImageScale = () => {
+  state.hasInitOffset = false;
   const image = getImage()!!;
   const naturalWidth = image.naturalWidth;
   const naturalHeight = image.naturalHeight;
@@ -101,14 +136,15 @@ const recalculateScale = (newScale: number, by: "init" | "container" | "wheel") 
 
   if (by === "container") {
     if (state.adaptive) {
-      if (state.preContainerWidth === curWidth || state.preContainerHeight === curHeight) {
+      if (isApproximate(state.preContainerWidth, curWidth) || isApproximate(state.preContainerHeight, curHeight)) {
+        console.log("fix");
         // 如果容器尺寸变化前和容器是自适应容器的，那么容器尺寸变化后也保持一致
         scale = fixedContentScale();
       } else {
         const preDiagonalLen = Math.sqrt(Math.pow(state.preContainerWidth, 2) + Math.pow(state.preContainerHeight, 2));
         const curDiagonalLen = Math.sqrt(Math.pow(state.containerWidth, 2) + Math.pow(state.containerHeight, 2));
         const diff = curDiagonalLen / preDiagonalLen;
-        scale = Math.min(scale * diff, 50);
+        scale = scale * diff;
       }
     }
   }
@@ -132,20 +168,53 @@ const recalculateScale = (newScale: number, by: "init" | "container" | "wheel") 
   if (by !== "init" && scale === state.scale) {
     return;
   }
+  const oldScale = state.scale;
   state.scale = scale;
   emits("change-scale", Math.floor(state.scale * 100));
-  reposition();
+  reposition(oldScale);
 };
 
 // 根据现有数据将图片重新定位
-const reposition = () => {
+const reposition = (oldScale: number, offset: { left: number; top: number } | null = null) => {
   const image = getImage()!!;
-  state.style.width = image.naturalWidth * state.scale;
-  state.style.height = image.naturalHeight * state.scale;
+  const scaleWidth = image.naturalWidth * state.scale;
+  const scaleHeight = image.naturalHeight * state.scale;
+  const doScale = () => {
+    state.style.width = scaleWidth;
+    state.style.height = scaleHeight;
+  };
 
   // 计算图片左上角的位置
-  state.style.left = -(state.style.width * state.center.x - state.containerWidth / 2);
-  state.style.top = -(state.style.height * state.center.y - state.containerHeight / 2);
+
+  if (offset !== null) {
+    doScale();
+    state.style.left += offset.left;
+    state.style.top += offset.top;
+    return;
+  }
+
+  if (!state.hasInitOffset) {
+    state.hasInitOffset = true;
+    if (image.naturalWidth === 0 && image.naturalHeight === 0) {
+      return;
+    }
+
+    // 初始化位置，使图片居中显示
+    doScale();
+    state.style.left = (state.containerWidth - state.style.width) / 2;
+    state.style.top = (state.containerHeight - state.style.height) / 2;
+  } else {
+    const getDiff = (len: number): number => {
+      const rate = state.scale / oldScale;
+      return len * rate - len;
+    };
+
+    const center = getScalePointer.value();
+    console.log(center);
+    state.style.left -= getDiff(center.px);
+    state.style.top -= getDiff(center.py);
+    doScale();
+  }
 };
 
 // 标准缩放: 按照当前图片在容器的中心点进行缩放, 每次缩放10%
@@ -159,6 +228,88 @@ const standardScale = (value: number) => {
   }
   state.adaptive = true;
   recalculateScale(targetScale, "wheel");
+};
+
+// 拖动操作 - 鼠标按下
+const handleDragMouseDown = () => {
+  if (state.style.width <= state.containerWidth && state.style.height <= state.containerHeight) {
+    return;
+  }
+  state.drag.down = true;
+  state.drag.x = 0;
+  state.drag.y = 0;
+};
+
+// 拖动操作 - 鼠标移动
+const handleDragMouseMove = (e: MouseEvent) => {
+  if (!state.drag.down) {
+    return;
+  }
+  const updateCurrentMousePosition = () => {
+    state.drag.x = e.clientX;
+    state.drag.y = e.clientY;
+  };
+
+  if (state.drag.x === 0 && state.drag.y === 0) {
+    updateCurrentMousePosition();
+    return;
+  }
+  const v = {
+    x1: state.drag.x,
+    y1: state.drag.y,
+    x2: e.clientX,
+    y2: e.clientY,
+  };
+  updateCurrentMousePosition();
+
+  const offset = {
+    left: 0,
+    top: 0,
+  };
+  if (state.style.width > state.containerWidth) {
+    const diffX = v.x2 - v.x1;
+    if (diffX > 0) {
+      // 向右移动, 检查左边界
+      if (state.style.left + diffX > 0) {
+        offset.left = -state.style.left;
+      } else {
+        offset.left = diffX;
+      }
+    }
+    if (diffX < 0) {
+      // 向左移动，检查右边界
+      if (state.style.left + state.style.width + diffX < state.containerWidth) {
+        offset.left = state.containerWidth - (state.style.left + state.style.width);
+      } else {
+        offset.left = diffX;
+      }
+    }
+  }
+  if (state.style.height > state.containerHeight) {
+    const diffY = v.y2 - v.y1;
+    if (diffY > 0) {
+      // 向下移动，检查上边界
+      if (state.style.top + diffY > 0) {
+        offset.top = -state.style.top;
+      } else {
+        offset.top = diffY;
+      }
+    }
+    if (diffY < 0) {
+      // 向上移动，检查下边界
+      if (state.style.top + state.style.height + diffY < state.containerHeight) {
+        offset.top = state.containerHeight - (state.style.top + state.style.height);
+      } else {
+        offset.top = diffY;
+      }
+    }
+  }
+  reposition(state.scale, offset);
+};
+
+// 拖动操作 - 鼠标抬起
+const handleDragMouseUp = () => {
+  state.drag.down = false;
 };
 
 watch(
@@ -194,9 +345,14 @@ onMounted(() => {
   imageRef.value!!.addEventListener("wheel", (e: WheelEvent) => {
     standardScale(e.deltaY);
   });
+  imageRef.value!!.addEventListener("mousedown", handleDragMouseDown);
+  document.addEventListener("mousemove", handleDragMouseMove);
+  document.addEventListener("mouseup", handleDragMouseUp);
 });
 
 onBeforeUnmount(() => {
   resizeObserver.disconnect();
+  document.removeEventListener("mousemove", handleDragMouseMove);
+  document.removeEventListener("mouseup", handleDragMouseUp);
 });
 </script>

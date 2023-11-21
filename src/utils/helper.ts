@@ -9,6 +9,15 @@ export function minmax(value: number, min: number, max: number): number {
   return Math.max(Math.min(value, max), min);
 }
 
+/**
+ * 判断两个数值是否近似
+ *
+ * 判断依据是比较两数量差的绝对值，如果小于error值，那么认为两个数是近似的
+ */
+export function isApproximate(a: number, b: number, error: number = 2) {
+  return Math.abs(a - b) < error
+}
+
 interface HtmlElementHandler {
   (el: HTMLElement): void;
 }
