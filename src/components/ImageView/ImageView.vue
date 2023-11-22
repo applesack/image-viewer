@@ -11,6 +11,7 @@
         height: `${state.style.height}px`,
         left: `${state.style.left}px`,
         top: `${state.style.top}px`,
+        cursor: `${state.style.cursor}`,
       }" />
   </div>
 </template>
@@ -19,12 +20,15 @@
 import { SingleImage, SingleImageEmits } from "./types.ts";
 import { onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { isApproximate } from "../../utils/helper.ts";
+import { useMousePosition } from "../../hooks/useMousePosition.ts";
+import { useMouseEvent } from "../../hooks/useMouseEvent.ts";
 
 defineOptions({
   name: "ImageView",
 });
 
 // todo 画面缩小时使用动画，画面放大时关闭动画效果
+// todo 如果容器尺寸变化前图片处于垂直/水平居中，那么变化后也保持垂直/水平居中
 
 const props = defineProps<SingleImage>();
 const state = reactive({
@@ -43,8 +47,10 @@ const state = reactive({
     width: 0,
     left: 0,
     top: 0,
+    cursor: "default",
   },
   drag: {
+    draggable: false,
     down: false,
     x: 0,
     y: 0,
@@ -53,11 +59,14 @@ const state = reactive({
 
 const emits = defineEmits<SingleImageEmits>();
 
+const { mouseX, mouseY } = useMousePosition();
+const mouseEvent = useMouseEvent();
+
 /**
  * 获取缩放点位于图片的位置
  */
 interface GetScalePointer {
-  (): { px: number; py: number; mx: number; my: number };
+  (): { px: number; py: number };
 }
 
 const containerRef = ref<HTMLElement>();
@@ -94,11 +103,20 @@ const getImageCenterPointer: GetScalePointer = () => {
   return {
     px,
     py,
-    mx: state.style.left,
-    my: state.style.top,
   };
 };
 const getScalePointer = ref<GetScalePointer>(getImageCenterPointer);
+const getImageCenterPointerByMousePosition: GetScalePointer = () => {
+  const imageBounding = imageRef.value!!.getBoundingClientRect();
+  const px = mouseX.value - imageBounding.left;
+  const py = mouseY.value - imageBounding.top;
+  const pointer = {
+    px,
+    py,
+  };
+  getScalePointer.value = getImageCenterPointer;
+  return pointer;
+};
 
 const getScale = (containerValue: number, imageValue: number): number => containerValue / imageValue;
 
@@ -140,6 +158,7 @@ const recalculateScale = (newScale: number, by: "init" | "container" | "wheel") 
         // 如果容器尺寸变化前和容器是自适应容器的，那么容器尺寸变化后也保持一致
         scale = fixedContentScale();
       } else {
+        // TODO 优化对角线缩放的算法，只计算图片可视部分的缩放比例
         const preDiagonalLen = Math.sqrt(Math.pow(state.preContainerWidth, 2) + Math.pow(state.preContainerHeight, 2));
         const curDiagonalLen = Math.sqrt(Math.pow(state.containerWidth, 2) + Math.pow(state.containerHeight, 2));
         const diff = curDiagonalLen / preDiagonalLen;
@@ -165,6 +184,7 @@ const recalculateScale = (newScale: number, by: "init" | "container" | "wheel") 
   }
 
   if (by !== "init" && scale === state.scale) {
+    getScalePointer.value = getImageCenterPointer;
     return;
   }
   const oldScale = state.scale;
@@ -194,7 +214,7 @@ const reposition = (oldScale: number, offset: { left: number; top: number } | nu
 
   if (!state.hasInitOffset) {
     if (image.naturalWidth === 0 && image.naturalHeight === 0) {
-      // 如果在图片未完成加载时可能会触发这个方法，此时图片的高宽位置，继续计算的话无意义
+      // 如果在图片未完成加载时可能会触发这个方法，此时图片的高宽位置为0，继续计算的话无意义
       return;
     }
 
@@ -243,7 +263,7 @@ const reposition = (oldScale: number, offset: { left: number; top: number } | nu
 };
 
 // 标准缩放: 按照当前图片在容器的中心点进行缩放, 每次缩放10%
-const standardScale = (value: number) => {
+const standardScale = (value: number, by: "mouse" | "other") => {
   const delta = state.scale * 0.1;
   let targetScale = state.scale;
   if (value < 0) {
@@ -252,6 +272,9 @@ const standardScale = (value: number) => {
     targetScale -= delta;
   }
   state.adaptive = true;
+  if (by === "mouse") {
+    getScalePointer.value = getImageCenterPointerByMousePosition;
+  }
   recalculateScale(targetScale, "wheel");
 };
 
@@ -266,13 +289,13 @@ const handleDragMouseDown = () => {
 };
 
 // 拖动操作 - 鼠标移动
-const handleDragMouseMove = (e: MouseEvent) => {
+const handleDragMouseMove = () => {
   if (!state.drag.down) {
     return;
   }
   const updateCurrentMousePosition = () => {
-    state.drag.x = e.clientX;
-    state.drag.y = e.clientY;
+    state.drag.x = mouseX.value;
+    state.drag.y = mouseY.value;
   };
 
   if (state.drag.x === 0 && state.drag.y === 0) {
@@ -282,8 +305,8 @@ const handleDragMouseMove = (e: MouseEvent) => {
   const v = {
     x1: state.drag.x,
     y1: state.drag.y,
-    x2: e.clientX,
-    y2: e.clientY,
+    x2: mouseX.value,
+    y2: mouseY.value,
   };
   updateCurrentMousePosition();
 
@@ -357,6 +380,42 @@ watch([() => state.containerWidth, () => state.containerHeight], () => {
   recalculateScale(state.scale, "container");
 });
 
+watch([mouseX, mouseY], () => {
+  handleDragMouseMove();
+});
+
+watch(mouseEvent, () => {
+  if (mouseEvent.value === "up") {
+    handleDragMouseUp();
+  } else {
+    handleDragMouseDown();
+  }
+});
+
+// 图片尺寸变化时，计算当前是否可以进行拖动，然后改变指针的形态
+watch(
+  [() => state.style.width, () => state.style.height, () => state.drag.down],
+  () => {
+    const draggable = state.style.width > state.containerWidth || state.style.height > state.containerHeight;
+    let next: string;
+    if (draggable) {
+      if (state.drag.down) {
+        next = "grabbing";
+      } else {
+        next = "grab";
+      }
+    } else {
+      next = "default";
+    }
+    if (next !== state.style.cursor) {
+      state.style.cursor = next;
+    }
+  },
+  {
+    immediate: true,
+  },
+);
+
 const resizeObserver = new ResizeObserver(onContainerResize);
 
 onMounted(() => {
@@ -368,16 +427,11 @@ onMounted(() => {
     initImageScale();
   });
   imageRef.value!!.addEventListener("wheel", (e: WheelEvent) => {
-    standardScale(e.deltaY);
+    standardScale(e.deltaY, "mouse");
   });
-  imageRef.value!!.addEventListener("mousedown", handleDragMouseDown);
-  document.addEventListener("mousemove", handleDragMouseMove);
-  document.addEventListener("mouseup", handleDragMouseUp);
 });
 
 onBeforeUnmount(() => {
   resizeObserver.disconnect();
-  document.removeEventListener("mousemove", handleDragMouseMove);
-  document.removeEventListener("mouseup", handleDragMouseUp);
 });
 </script>
