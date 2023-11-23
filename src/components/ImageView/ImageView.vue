@@ -6,12 +6,14 @@
       :src="state.src"
       alt=""
       ref="imageRef"
+      style="transition-property: left, top, width, height"
       :style="{
         width: `${state.style.width}px`,
         height: `${state.style.height}px`,
         left: `${state.style.left}px`,
         top: `${state.style.top}px`,
         cursor: `${state.style.cursor}`,
+        transitionDuration: `${state.style.transitionDuration}ms`
       }" />
   </div>
 </template>
@@ -27,7 +29,6 @@ defineOptions({
   name: "ImageView",
 });
 
-// todo 画面缩小时使用动画，画面放大时关闭动画效果
 // todo 如果容器尺寸变化前图片处于垂直/水平居中，那么变化后也保持垂直/水平居中
 
 const props = defineProps<SingleImage>();
@@ -48,9 +49,10 @@ const state = reactive({
     left: 0,
     top: 0,
     cursor: "default",
+    enableTransition: false,
+    transitionDuration: 0
   },
   drag: {
-    draggable: false,
     down: false,
     x: 0,
     y: 0,
@@ -189,6 +191,7 @@ const recalculateScale = (newScale: number, by: "init" | "container" | "wheel") 
   }
   const oldScale = state.scale;
   state.scale = scale;
+  state.style.enableTransition = oldScale > state.scale;
   emits("change-scale", Math.floor(state.scale * 100));
   reposition(oldScale);
 };
@@ -415,6 +418,16 @@ watch(
     immediate: true,
   },
 );
+
+watch(() => state.style.enableTransition, () => {
+  if (state.style.enableTransition) {
+    state.style.transitionDuration = 75
+  } else {
+    state.style.transitionDuration = 0
+  }
+}, {
+  immediate: true
+})
 
 const resizeObserver = new ResizeObserver(onContainerResize);
 
