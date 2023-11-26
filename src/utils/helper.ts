@@ -24,12 +24,12 @@ interface HtmlElementHandler {
 
 export function createSlot(handler: HtmlElementHandler) {
   return defineComponent({
-    props: ["vNode"],
+    props: ["node"],
     mounted() {
       handler(this.$el)
     },
     render() {
-      return this.$props.vNode;
+      return this.$props.node;
     },
   });
 }
