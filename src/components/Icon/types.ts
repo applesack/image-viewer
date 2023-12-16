@@ -3,5 +3,7 @@ export interface IconProps {
   name: string;
   color?: string;
   size?: number | string;
+  isActive?: boolean;
+  disabled?: boolean;
   spin?: boolean;
 }

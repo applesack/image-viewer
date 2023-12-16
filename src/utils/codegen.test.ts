@@ -1,20 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+import { describe, test } from "vitest";
 
-@layer base {
-  :root {
-    --danger: #c42b1c; /* 危险色 used */
-
-    .theme-light {
-      /**
-       * 缩写
-       * b: border; bt => border-top, bl => border-left ...
-       * bg: backgroundColor
-       * a: active
-       * ia: inactive
-       */
-
+const cssVariables = `
       --files-bg: #fbfbfb; /* 默认背景色 */
       --files-b: #ececec; /* 主界面窄框线颜色 */
       --files-tab-ia: #e5e5e5; /* tab项未激活颜色 */
@@ -48,31 +34,47 @@
       --icon-inactive: #ababab; /* 图标不可用时的颜色 used */
 
       --danger: #c42b1c; /* 危险色 used */
-
+      
       color: var(--default);
-    }
+  `;
 
-    .theme-dark {
-      --image-bg: #202020;
-
-      --image-logo-bg: #2d2d2d;
-      --image-logo-a-bg: #323232;
-      --image-btn-hover: #2d2d2d;
-
-      --highlight: #71d4db;
-      --highlight-hover: #68c1c8;
-
-      --default: #ffffff;
-      --invert: #1b1b1b;
-      --icon-inactive: #767677;
-
-      color: var(--default);
+function trimStart(word: string, ch: string): string {
+  let breakIdx = 0;
+  for (let i = 0; i < word.length; i++) {
+    if (word[i] === ch) {
+      breakIdx++;
+    } else {
+      break;
     }
   }
+  return word.substring(breakIdx)
+}
 
-  :root {
+function themeCodeGen(text: string) {
+  const lines = text.split("\n");
+  const pureLines: string[] = [];
+  for (const line of lines) {
+    const rest = line.replace(/\/[*].*[*]\//, "").trim();
+    if (rest.length > 0) {
+      pureLines.push(rest);
+    }
+  }
+  const keys: string[] = [];
+  for (const line of pureLines) {
+    const colonIdx = line.indexOf(":");
+    if (colonIdx < 0 || !line.startsWith('-')) {
+      continue;
+    }
+    const key = line.substring(0, colonIdx).trim();
+    keys.push(key)
+  }
+  for (const key of keys) {
+    console.log(`"${trimStart(key, '-')}": "var(${key})",`)
   }
 }
 
-@layer utilities {
-}
+describe("codegen", () => {
+  test("theme", () => {
+    themeCodeGen(cssVariables);
+  });
+});

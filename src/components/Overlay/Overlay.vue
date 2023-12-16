@@ -4,7 +4,7 @@
       <!-- 内容 -->
       <div class="z-10 h-full border border-solid border-neutral-300 bg-gray-100 px-2 py-3">
         <TheSlot
-          :v-node="defaultSlot"
+          :node="defaultSlot"
           class="overflow-hidden rounded-md transition-[margin-left]"
           :style="{
             marginLeft: `${slider.contentOffset}px`,
@@ -67,8 +67,8 @@ defineOptions({
 // 由于最前面的可能是注释 <!-- -->，
 // 所以这里遍历找出第一个非注释的dom节点
 const slots = useSlots();
-const defaultSlot = ref(null);
-for (let s of Array.from(slots.default())) {
+const defaultSlot = ref<any | null>(null);
+for (let s of Array.from((slots.default && slots.default()) || [])) {
   if ("type" in s && typeof s.type === "string") {
     defaultSlot.value = s;
     break;

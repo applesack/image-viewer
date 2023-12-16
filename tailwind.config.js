@@ -1,5 +1,7 @@
 /** @type {import("tailwindcss").Config} */
+
 export default {
+  mode: "jit",
   content: ["./index.html", "./src/**/*.{vue,js,jsx,ts,tsx}"],
   theme: {
     extend: {
@@ -37,8 +39,35 @@ export default {
         56: "14rem",
         64: "16rem",
       },
+      colors: {
+        "files-bg": "var(--files-bg)",
+        "files-b": "var(--files-b)",
+        "files-tab-ia": "var(--files-tab-ia)",
+        "files-tab-bb": "var(--files-tab-bb)",
+        "files-tab-bg": "var(--files-tab-bg)",
+        "files-slider-bg": "var(--files-slider-bg)",
+        "file-select": "var(--file-select)",
+        "file-hover": "var(--file-hover)",
+        "form-bt": "var(--form-bt)",
+        "form-inner": "var(--form-inner)",
+        "form-bb": "var(--form-bb)",
+        "image-bg": "var(--image-bg)",
+        "image-status-bar-bg": "var(--image-status-bar-bg)",
+        "image-logo-bg": "var(--image-logo-bg)",
+        "image-logo-a-bg": "var(--image-logo-a-bg)",
+        "image-btn-hover": "var(--image-btn-hover)",
+        "image-preview-item-bg": "var(--image-preview-item-bg)",
+        "image-preview-item-hover-bg": "var(--image-preview-item-hover-bg)",
+        "highlight": "var(--highlight)",
+        "highlight-hover": "var(--highlight-hover)",
+        "default": "var(--default)",
+        "invert": "var(--invert)",
+        "title": "var(--title)",
+        "inactive": "var(--inactive)",
+        "icon-inactive": "var(--icon-inactive)",
+        "danger": "var(--danger)",
+      },
     },
   },
-  darkMode: "class",
   plugins: [],
 };
