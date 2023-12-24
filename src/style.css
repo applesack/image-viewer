@@ -32,9 +32,10 @@
 
       --image-bg: #f3f3f3; /* image-默认背景 used */
       --image-status-bar-bg: #f9f9f9; /* image-工具栏背景 */
-      --image-logo-bg: #f4f4f5; /* image-logo颜色 used */
-      --image-logo-a-bg: #ebebeb; /* image-logo悬浮颜色 used */
+      --image-logo-bg: #fbfbfb; /* image-logo颜色 used */
+      --image-logo-a-bg: #f6f6f6; /* image-logo悬浮颜色 used */
       --image-btn-hover: #eaeaeb; /* image-控制按钮鼠标悬浮颜色 used */
+      --image-preview-bg: #f2f2f9; /* image-缩略图背景 */
       --image-preview-item-bg: #eae9f0; /* image-预览窗项目背景 */
       --image-preview-item-hover-bg: #e1e1e8; /* image-预览窗项目鼠标悬浮背景 */
 
@@ -58,6 +59,7 @@
       --image-logo-bg: #2d2d2d;
       --image-logo-a-bg: #323232;
       --image-btn-hover: #2d2d2d;
+      --image-preview-bg: #202020;
 
       --highlight: #71d4db;
       --highlight-hover: #68c1c8;

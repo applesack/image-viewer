@@ -65,6 +65,7 @@ export default {
         "title": "var(--title)",
         "inactive": "var(--inactive)",
         "icon-inactive": "var(--icon-inactive)",
+        "image-preview-bg": "var(--image-preview-bg)",
         "danger": "var(--danger)",
       },
     },
