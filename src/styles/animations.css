@@ -1,0 +1,5 @@
+.slide-enter-active, .slide-leave-active {
+  transition: height, width;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
