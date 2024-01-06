@@ -5,16 +5,16 @@
 </template>
 
 <script setup lang="ts">
-import type { DecoratorSize, ToolbarDecoratorProps } from "./types.ts";
+import type { DecoratorSize, DecoratorProps } from "./types.ts";
 import { computed } from "vue";
-import SvgIcon from "../../Icon/SvgIcon.vue";
+import SvgIcon from "../Icon/SvgIcon.vue";
 
 defineOptions({
-  name: "ToolbarDecorator",
+  name: "Decorator",
 });
 
-const props = withDefaults(defineProps<ToolbarDecoratorProps>(), {
-  iconSize: "medium",
+const props = withDefaults(defineProps<DecoratorProps>(), {
+  iconSize: "md",
   type: "button",
   secondary: false,
   isActive: false,
@@ -47,11 +47,15 @@ const getHoverClassNames = (): string => {
   }
 };
 
-const getIconSizeClassNames = (size: DecoratorSize) => {
-  if (size === "medium") {
-    return "1.125rem";
+const getIconSizeClassNames = (size: DecoratorSize): string => {
+  switch (size) {
+    case "md":
+      return "1.125rem";
+    case "lg":
+      return "1.25rem";
+    case "xl":
+      return "1.375rem";
   }
-  return "1.375rem";
 };
 
 const getActiveClassNames = () => {

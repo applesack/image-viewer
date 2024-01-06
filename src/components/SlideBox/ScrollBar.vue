@@ -1,9 +1,9 @@
 <template>
-  <div></div>
+  <div class="scroll-bar"></div>
 </template>
 
 <script setup lang="ts">
 defineOptions({
-  name: 'ThumbnailWindow'
-})
+  name: "ScrollBar",
+});
 </script>

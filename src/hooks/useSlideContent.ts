@@ -10,7 +10,7 @@ import { minmax } from "../utils/helper.ts";
 export type Placement = "side" | "center";
 
 export interface SlideContainer {
-  scrollTo(childEl: HTMLElement, placement?: Placement): void;
+  scrollTo(childEl: HTMLElement, placement?: Placement, padding?: number): void;
 }
 
 /**
@@ -45,7 +45,7 @@ export function useSlideContent(containerRef: Ref<NullableElement>): SlideContai
   const register = (element: NullableElement) => element?.addEventListener("wheel", wheelEventHandler);
   const unRegister = (element: NullableElement) => element?.removeEventListener("wheel", wheelEventHandler);
 
-  const scrollTo = (childEl: HTMLElement, placement: Placement = "side") => {
+  const scrollTo = (childEl: HTMLElement, placement: Placement = "side", padding: number = 0) => {
     const getChildInfo = () => {
       const childBounding = childEl.getBoundingClientRect();
       const childLeft = childEl.offsetLeft;
@@ -69,9 +69,9 @@ export function useSlideContent(containerRef: Ref<NullableElement>): SlideContai
         return;
       }
       if (info.getPlacement() === "left") {
-        scrollOffset.value = info.childLeft;
+        scrollOffset.value = info.childLeft - padding;
       } else {
-        scrollOffset.value = info.childRight - containerWidth.value;
+        scrollOffset.value = info.childRight - containerWidth.value + padding;
       }
     } else {
       if (containerWidth.value >= containerRef.value!.scrollWidth) {

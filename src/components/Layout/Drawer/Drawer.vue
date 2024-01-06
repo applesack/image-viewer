@@ -1,5 +1,5 @@
 <template>
-  <div class="drawer h-full w-full" :class="containerLayoutClassNames">
+  <div class="drawer" :class="containerLayoutClassNames">
     <div class="drawer-content flex-1" :class="props.bodyClassName" :style="props.bodyStyle">
       <slot name="default" class="h-full w-full" />
     </div>
